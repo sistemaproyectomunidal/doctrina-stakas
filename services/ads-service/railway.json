@@ -1,0 +1,4 @@
+{
+  "name": "ads-service",
+  "start": "gunicorn main:create_app() -b 0.0.0.0:8000"
+}
