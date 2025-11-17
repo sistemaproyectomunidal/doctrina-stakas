@@ -4,6 +4,16 @@ from typing import Optional, Dict, Any
 
 import httpx
 
+# Attempt to load a local .env file if present for developer convenience
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+except Exception:
+    # dotenv is optional; if not installed, environment variables must be set externally
+    pass
+
 GPT5_API_URL = os.getenv("GPT5_API_URL")  # e.g. https://api.yourprovider.com/v1/generate
 GPT5_API_KEY = os.getenv("GPT5_API_KEY")
 

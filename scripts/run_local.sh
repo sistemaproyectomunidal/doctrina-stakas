@@ -33,6 +33,15 @@ ORCH_PID=$!
 echo "orchestrator PID=$ORCH_PID"
 
 # Start command-interpreter
+# If a .env exists for the command-interpreter, export its variables first
+if [ -f "$ROOT_DIR/services/command-interpreter/.env" ]; then
+  echo "Loading env for command-interpreter from services/command-interpreter/.env"
+  # export variables declared as KEY=VALUE lines
+  set -a
+  source "$ROOT_DIR/services/command-interpreter/.env"
+  set +a
+fi
+
 nohup uvicorn services.command-interpreter.main:app --host 0.0.0.0 --port 8000 > "$LOG_DIR/command-interpreter.log" 2>&1 &
 CMD_PID=$!
 echo "command-interpreter PID=$CMD_PID"
