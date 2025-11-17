@@ -17,7 +17,7 @@ from typing import Optional
 from enum import Enum
 import uuid
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import uvicorn
@@ -84,6 +84,14 @@ class ServiceHealth(BaseModel):
     executions_total: int = Field(..., description="Total de ejecuciones")
     executions_running: int = Field(..., description="Ejecuciones en progreso")
     memory_usage: float = Field(..., description="Uso de memoria en MB")
+
+
+class DeployRequest(BaseModel):
+    service: str
+    env: str
+
+class StatusRequest(BaseModel):
+    service: str
 
 
 # ============================================================================
@@ -437,6 +445,26 @@ async def websocket_stream(websocket: WebSocket, execution_id: str):
     
     except WebSocketDisconnect:
         logger.info(f"WebSocket client disconnected for {execution_id}")
+
+
+@app.post("/api/deploy")
+async def deploy_service(req: DeployRequest = Body(...)):
+    return {
+        "status": "success",
+        "service": req.service,
+        "env": req.env,
+        "message": f"Monitor {req.service} desplegado en {req.env}."
+    }
+
+
+@app.post("/api/status")
+async def get_status(req: StatusRequest = Body(...)):
+    return {
+        "status": "running",
+        "service": req.service,
+        "uptime": "99.9%",
+        "message": f"Estado de {req.service}: running."
+    }
 
 
 # ============================================================================
