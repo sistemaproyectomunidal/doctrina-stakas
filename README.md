@@ -1,0 +1,2 @@
+# doctrina-stakas
+Dogma
