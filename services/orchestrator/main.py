@@ -2,6 +2,9 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from typing import Any, Dict
 import httpx
+import os
+
+PAUSE_DEPLOYS = os.getenv("PAUSE_DEPLOYS", "false").lower() in ("1", "true", "yes")
 
 app = FastAPI(title="Orchestrator API", version="0.1")
 
@@ -36,6 +39,9 @@ async def orchestrate(req: OrchestratorRequest):
 
     # Caso especial: deploy_service -> decidir endpoint por nombre de servicio
     if action == "deploy_service":
+        # Respect global pause flag to avoid accidental deploys during testing
+        if PAUSE_DEPLOYS:
+            return OrchestratorResponse(result=None, message="Deploys are temporarily paused (PAUSE_DEPLOYS=true).")
         svc = params.get("service")
         if not svc:
             return OrchestratorResponse(result=None, message="Parámetro 'service' requerido para deploy_service.")

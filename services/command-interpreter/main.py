@@ -28,6 +28,23 @@ class CommandResponse(BaseModel):
 import httpx
 from .gpt_client import get_gpt5_client
 import os
+import logging
+
+logger = logging.getLogger("command-interpreter")
+logging.basicConfig(level=logging.INFO)
+
+
+# Configuration checks
+def check_configuration():
+    """Return a dict with booleans indicating whether required secrets are present."""
+    return {
+        "gpt5_configured": bool(os.getenv("GPT5_API_KEY")),
+        "gpt5_api_url": bool(os.getenv("GPT5_API_URL")),
+        "e2b_sandbox_configured": bool(os.getenv("E2B_SANDBOX_KEY")),
+        "env": os.getenv("ENV", "development"),
+    }
+
+
 
 @app.post("/api/command", response_model=CommandResponse)
 async def interpret_command(req: CommandRequest):
@@ -84,6 +101,24 @@ async def interpret_command(req: CommandRequest):
         message=message,
         orchestrator_result=orchestrator_result,
     )
+
+
+@app.get("/api/health")
+async def health():
+    """Return simple health and configuration status for the interpreter."""
+    cfg = check_configuration()
+    status = {
+        "status": "ok",
+        "config": cfg,
+    }
+    # Log a warning if important keys are missing when running in production
+    if cfg["env"] == "production":
+        if not cfg["gpt5_configured"]:
+            logger.warning("GPT-5 API key not configured in production environment.")
+        if not cfg["e2b_sandbox_configured"]:
+            logger.warning("E2B sandbox key not configured in production environment.")
+
+    return status
 
 if __name__ == "__main__":
     import uvicorn

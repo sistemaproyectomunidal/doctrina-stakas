@@ -28,11 +28,7 @@ MUSIC_PID=$!
 echo "music-production PID=$MUSIC_PID"
 
 # Start orchestrator
-nohup uvicorn services.orchestrator.main:app --host 0.0.0.0 --port 8100 > "$LOG_DIR/orchestrator.log" 2>&1 &
-ORCH_PID=$!
-echo "orchestrator PID=$ORCH_PID"
 
-# Start command-interpreter
 # If a .env exists for the command-interpreter, export its variables first
 if [ -f "$ROOT_DIR/services/command-interpreter/.env" ]; then
   echo "Loading env for command-interpreter from services/command-interpreter/.env"
@@ -42,6 +38,12 @@ if [ -f "$ROOT_DIR/services/command-interpreter/.env" ]; then
   set +a
 fi
 
+# Start orchestrator (env from .env will be available to it)
+nohup uvicorn services.orchestrator.main:app --host 0.0.0.0 --port 8100 > "$LOG_DIR/orchestrator.log" 2>&1 &
+ORCH_PID=$!
+echo "orchestrator PID=$ORCH_PID"
+
+# Start command-interpreter (env already exported above)
 nohup uvicorn services.command-interpreter.main:app --host 0.0.0.0 --port 8000 > "$LOG_DIR/command-interpreter.log" 2>&1 &
 CMD_PID=$!
 echo "command-interpreter PID=$CMD_PID"
