@@ -1,0 +1,224 @@
+""""""Simple worker module placeholder for E2B integration."""
+
+Background worker for processing jobs.
+
+Handles asynchronous job execution and E2B sandbox dispatching.from uuid import UUID
+
+"""from sqlalchemy.ext.asyncio import AsyncSession
+
+import asynciofrom sqlalchemy import select
+
+import logging
+
+from typing import Optionalfrom app.models.database import Job, JobStatus
+
+from uuid import UUID
+
+
+
+from sqlalchemy.ext.asyncio import AsyncSessionasync def process_single_job(db: AsyncSession) -> dict:
+
+from sqlalchemy import select    """
+
+    Process a single pending job from the queue.
+
+from app.models.database import Job, JobStatus    
+
+from app.core.database import async_session_maker    This is a simplified worker that handles E2B jobs.
+
+from app.ledger import log_job_event    In a production environment, this would be replaced with
+
+    a proper job queue system (Celery, RQ, etc.).
+
+logger = logging.getLogger(__name__)    
+
+    Args:
+
+        db: Database session
+
+async def process_single_job(job_id: UUID, db: Optional[AsyncSession] = None) -> None:        
+
+    """    Returns:
+
+    Process a single job by ID.        Dictionary with processing result
+
+        """
+
+    Args:    # Get first pending job
+
+        job_id: Job UUID to process    result = await db.execute(
+
+        db: Optional database session (creates new if not provided)        select(Job)
+
+    """        .where(Job.status == JobStatus.PENDING)
+
+    should_close_session = False        .order_by(Job.created_at)
+
+            .limit(1)
+
+    if db is None:    )
+
+        db = async_session_maker()    job = result.scalar_one_or_none()
+
+        should_close_session = True    
+
+        if not job:
+
+    try:        return {
+
+        # Fetch job            "processed": False,
+
+        result = await db.execute(select(Job).filter(Job.id == job_id))            "message": "No pending jobs in queue"
+
+        job = result.scalar_one_or_none()        }
+
+            
+
+        if not job:    # Update job status
+
+            logger.error(f"Job {job_id} not found")    job.status = JobStatus.PROCESSING
+
+            return    await db.commit()
+
+            
+
+        logger.info(f"Processing job {job_id} of type {job.job_type}")    try:
+
+                # Route based on job type
+
+        # Update status to processing        if job.job_type == "cut_analysis_e2b":
+
+        job.status = JobStatus.PROCESSING            # Use the new services layer for E2B
+
+        await db.commit()            from app.services.e2b_service import dispatch_e2b_job, handle_e2b_callback
+
+                    
+
+        await log_job_event(            # Run E2B simulation
+
+            job_id=job_id,            result = await dispatch_e2b_job(
+
+            event_type="job_started",                job_id=job.id,
+
+            status=JobStatus.PROCESSING.value,                video_asset_id=job.video_asset_id,
+
+            message=f"Started processing job type {job.job_type}"                params=job.params or {},
+
+        )                db=db
+
+                    )
+
+        # Simulate job processing            
+
+        await asyncio.sleep(1)            # Handle callback
+
+                    await handle_e2b_callback(
+
+        # Mark as completed                job_id=job.id,
+
+        job.status = JobStatus.COMPLETED                result=result,
+
+        job.result = {                db=db
+
+            "status": "success",            )
+
+            "message": f"Job {job.job_type} completed"            
+
+        }            return {
+
+        await db.commit()                "processed": True,
+
+                        "job_id": str(job.id),
+
+        await log_job_event(                "job_type": job.job_type,
+
+            job_id=job_id,                "status": "completed",
+
+            event_type="job_completed",                "result": job.result,
+
+            status=JobStatus.COMPLETED.value,                "processing_time_ms": result.processing_time_ms
+
+            message="Job completed successfully"            }
+
+        )        else:
+
+                    # Unknown job type
+
+        logger.info(f"Job {job_id} completed successfully")            job.status = JobStatus.FAILED
+
+                    job.error_message = f"Unknown job type: {job.job_type}"
+
+    except Exception as e:            await db.commit()
+
+        logger.error(f"Error processing job {job_id}: {str(e)}")            
+
+                    return {
+
+        if db and job:                "processed": True,
+
+            job.status = JobStatus.FAILED                "job_id": str(job.id),
+
+            job.error_message = str(e)                "job_type": job.job_type,
+
+            await db.commit()                "status": "failed",
+
+                            "error": f"Unknown job type: {job.job_type}"
+
+            await log_job_event(            }
+
+                job_id=job_id,    
+
+                event_type="job_failed",    except Exception as e:
+
+                status=JobStatus.FAILED.value,        # Handle errors
+
+                message=str(e)        job.status = JobStatus.FAILED
+
+            )        job.error_message = str(e)
+
+            await db.commit()
+
+    finally:        
+
+        if should_close_session and db:        return {
+
+            await db.close()            "processed": True,
+
+            "job_id": str(job.id),
+
+            "job_type": job.job_type,
+
+async def worker_loop(poll_interval: int = 5) -> None:            "status": "failed",
+
+    """            "error": str(e)
+
+    Main worker loop that polls for pending jobs.        }
+
+    
+    Args:
+        poll_interval: Seconds between polling cycles
+    """
+    logger.info(f"Worker loop started with poll interval {poll_interval}s")
+    
+    while True:
+        try:
+            async with async_session_maker() as db:
+                # Find pending jobs
+                result = await db.execute(
+                    select(Job)
+                    .filter(Job.status == JobStatus.PENDING)
+                    .limit(10)
+                )
+                pending_jobs = result.scalars().all()
+                
+                if pending_jobs:
+                    logger.info(f"Found {len(pending_jobs)} pending jobs")
+                    
+                    # Process jobs
+                    for job in pending_jobs:
+                        await process_single_job(job.id, db)
+                
+        except Exception as e:
+            logger.error(f"Worker loop error: {str(e)}")
+        
+        await asyncio.sleep(poll_interval)

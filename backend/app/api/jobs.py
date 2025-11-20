@@ -15,6 +15,7 @@ from app.models.database import Job, JobStatus
 from app.core.database import get_db
 from app.services.job_worker import run_job
 from app.worker import process_single_job
+from app.ledger import log_job_event
 
 router = APIRouter()
 

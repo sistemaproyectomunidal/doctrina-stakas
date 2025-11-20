@@ -6,7 +6,6 @@ from uuid import uuid4
 from sqlalchemy import Column, String, Integer, Float, DateTime, JSON, ForeignKey, Text, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import UniqueConstraint
 import enum
 
 from app.core.database import Base
@@ -44,13 +43,6 @@ class RuleStatus(str, enum.Enum):
     APPROVED = "approved"
     ACTIVE = "active"
     DEPRECATED = "deprecated"
-
-
-class PublishLogStatus(str, enum.Enum):
-    """Publish log status enumeration."""
-    PENDING = "pending"
-    SUCCESS = "success"
-    FAILED = "failed"
 
 
 # Video Assets
@@ -197,68 +189,3 @@ class RuleEngineWeights(Base):
     platform = Column(String(50), primary_key=True)
     weights = Column(JSON, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-
-# Best Clip Decisions (Campaigns Orchestrator)
-class BestClipDecisionModel(Base):
-    """Best clip decision model for campaigns orchestrator."""
-    __tablename__ = "best_clip_decisions"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    video_asset_id = Column(UUID(as_uuid=True), ForeignKey("video_assets.id", ondelete="CASCADE"), nullable=False)
-    platform = Column(String(50), nullable=False)
-    clip_id = Column(UUID(as_uuid=True), ForeignKey("clips.id", ondelete="CASCADE"), nullable=False)
-    score = Column(Float, nullable=False)
-    decided_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
-    # Unique constraint on video_asset_id + platform
-    __table_args__ = (
-        UniqueConstraint('video_asset_id', 'platform', name='uq_video_asset_platform'),
-    )
-    
-    # Relationships
-    video_asset = relationship("VideoAsset", backref="best_clip_decisions")
-    clip = relationship("Clip", backref="best_clip_decisions")
-
-
-# Social Accounts (Publishing Engine)
-class SocialAccountModel(Base):
-    """Social media account model for publishing engine."""
-    __tablename__ = "social_accounts"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    platform = Column(String(50), nullable=False)  # instagram, tiktok, youtube, other
-    handle = Column(String(255), nullable=False)  # @stakazo, stakazo.oficial
-    external_id = Column(String(255), nullable=True)  # Platform-specific account ID
-    is_main_account = Column(Integer, nullable=False, default=0)  # SQLite-compatible boolean (0=False, 1=True)
-    is_active = Column(Integer, nullable=False, default=1)  # SQLite-compatible boolean (0=False, 1=True)
-    extra_metadata = Column(JSON, nullable=True)  # Additional account metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Relationships
-    publish_logs = relationship("PublishLogModel", back_populates="social_account")
-
-
-# Publish Logs (Publishing Engine)
-class PublishLogModel(Base):
-    """Publication log model for tracking posts to social platforms."""
-    __tablename__ = "publish_logs"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
-    clip_id = Column(UUID(as_uuid=True), ForeignKey("clips.id", ondelete="CASCADE"), nullable=False)
-    platform = Column(String(50), nullable=False)  # instagram, tiktok, youtube, other
-    social_account_id = Column(UUID(as_uuid=True), ForeignKey("social_accounts.id", ondelete="SET NULL"), nullable=True)
-    status = Column(String(50), nullable=False, default="pending")  # pending, success, failed
-    external_post_id = Column(String(255), nullable=True)  # Platform-specific post ID
-    external_url = Column(String(500), nullable=True)  # URL of the published post
-    error_message = Column(Text, nullable=True)  # Error message if failed
-    requested_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    published_at = Column(DateTime, nullable=True)  # When successfully published
-    extra_metadata = Column(JSON, nullable=True)  # Additional publication metadata
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    
-    # Relationships
-    clip = relationship("Clip", backref="publish_logs")
-    social_account = relationship("SocialAccountModel", back_populates="publish_logs")
