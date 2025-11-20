@@ -21,3 +21,9 @@ htmlcov/
 *.swo
 *~
 postgres_data/
+pgadmin_data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+storage/

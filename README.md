@@ -362,3 +362,29 @@ Proyecto privado - Sistema Proyecto Mundial
 
 **Desarrollado con** ‚ù§Ô∏è **usando FastAPI + PostgreSQL + Docker**
 
+
+---
+
+## ?? ConfiguraciÛn para Windows
+
+Este proyecto soporta desarrollo en **Windows sin Docker** usando SQLite.
+
+Ver guÌa completa: **[README_WINDOWS.md](README_WINDOWS.md)**
+
+### Inicio R·pido Windows
+
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements-windows.txt
+.\run.ps1
+```
+
+**Diferencias Windows:**
+- Base de datos: SQLite (`stakazo.db`)
+- Sin Docker requerido
+- Driver: `aiosqlite` (pure Python, sin compilaciÛn)
+- Dependencias optimizadas en `requirements-windows.txt`
+
+---
